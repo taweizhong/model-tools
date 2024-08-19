@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -10,6 +11,24 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+var jinja string = `
+/template
+# 创建template.jinja文件,不同模型的文件内容不一样的
+{{ (messages|selectattr('role', 'equalto', 'system')|list|last).content|trim if (messages|selectattr('role', 'equalto', 'system')|list) else '' }}
+
+{%- for message in messages -%}
+    {%- if message['role'] == 'user' -%}
+        {{- '<reserved_106>' + message['content'] -}}
+    {%- elif message['role'] == 'assistant' -%}
+        {{- '<reserved_107>' + message['content'] -}}
+    {%- endif -%}
+{%- endfor -%}
+
+{%- if add_generation_prompt and messages[-1]['role'] != 'assistant' -%}
+    {{- '<reserved_107>' -}}
+{% endif %}
+`
 
 func fileExist(path string) bool {
 	_, err := os.Stat(path)
@@ -34,6 +53,34 @@ func getRepoNameFromURL(repoURL string) string {
 	return path
 }
 
+func mkdirTemplateFile(modelPathEntry *widget.Entry, outputInfoEntry *widget.Entry, w fyne.Window) {
+	modelPath := modelPathEntry.Text
+	if !fileExist(modelPath) {
+		ErrorPrint("模型文件不存在", w)
+		return
+	}
+	if !fileExist(modelPath + "/template") {
+		err := os.Mkdir(modelPath+"/template", 0755)
+		if err != nil {
+			ErrorPrint("模版文件目录创建失败", w)
+			return
+		}
+		file, err := os.Create(modelPath + "/template/template.jinja")
+		if err != nil {
+			ErrorPrint("模版文件创建失败", w)
+			return
+		}
+		defer file.Close()
+		_, err = file.WriteString(jinja)
+		if err != nil {
+			ErrorPrint("模版文件写入失败", w)
+			return
+		}
+	}
+	InfoPrint(outputInfoEntry, "模型文件配置成功")
+	return
+}
+
 var m string
 
 func InfoPrint(outputInfoEntry *widget.Entry, massage string) {
@@ -41,18 +88,22 @@ func InfoPrint(outputInfoEntry *widget.Entry, massage string) {
 	outputInfoEntry.SetText(m)
 	outputInfoEntry.Refresh()
 }
+func ErrorPrint(error string, w fyne.Window) {
+	err := errors.New(error)
+	dialog.ShowError(err, w)
+}
 
-func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outputInfoEntry *widget.Entry, uploadPathEntry *widget.Entry, w fyne.Window) {
+func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outputInfoEntry *widget.Entry,
+	uploadPathEntry *widget.Entry, w fyne.Window, c context.Context) {
+
 	if modelPathEntry.Text == "" {
-		err := errors.New("请输入正确的地址")
-		dialog.ShowError(err, w)
+		ErrorPrint("请输入正确的地址", w)
 		return
 	}
 
 	modelPath := modelPathEntry.Text
 	if !fileExist(modelPath) {
-		err := errors.New("模型文件不存在")
-		dialog.ShowError(err, w)
+		ErrorPrint("模型文件不存在", w)
 		return
 	}
 	ProgressBar.SetValue(0.1)
@@ -61,8 +112,7 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 	if fileExist(modelPath + "/.git") {
 		err := os.RemoveAll(modelPath + "/.git")
 		if err != nil {
-			err := errors.New("删除.git文件错误")
-			dialog.ShowError(err, w)
+			ErrorPrint("删除.git文件错误", w)
 			return
 		}
 
@@ -78,8 +128,7 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 		cmd := exec.Command("git", "clone", repoURL, dir+"/"+repoName)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			err = errors.New("克隆镜像失败: " + string(output) + err.Error())
-			dialog.ShowError(err, w)
+			ErrorPrint("克隆镜像失败: "+string(output)+err.Error(), w)
 			return
 		}
 
@@ -90,7 +139,7 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 	cmd := exec.Command("cp", "-r", repoPath+"/.git", modelPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		err = errors.New("拷贝.git文件失败: " + string(output) + err.Error())
+		ErrorPrint("拷贝.git文件失败: "+string(output)+err.Error(), w)
 		dialog.ShowError(err, w)
 		return
 	}
@@ -100,8 +149,7 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 	cmd.Dir = modelPath
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		err = errors.New("add失败: " + string(output) + err.Error())
-		dialog.ShowError(err, w)
+		ErrorPrint("add失败: "+string(output)+err.Error(), w)
 		return
 	}
 	ProgressBar.SetValue(0.5)
@@ -111,21 +159,37 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 	cmd.Dir = modelPath
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		err = errors.New("commit失败: " + string(output) + err.Error())
-		dialog.ShowError(err, w)
+		ErrorPrint("commit失败: "+string(output)+err.Error(), w)
 		return
 	}
 	ProgressBar.SetValue(0.6)
 	InfoPrint(outputInfoEntry, "6.commit")
-
-	cmd = exec.Command("git", "push", "origin", "main")
+	// 父协程通过此channel停止子进程的执行。
+	ctx, Cancel := context.WithCancel(c)
+	cmd = exec.CommandContext(ctx, "git", "push", "origin", "main")
 	cmd.Dir = modelPath
-	output, err = cmd.CombinedOutput()
+	err = cmd.Start()
 	if err != nil {
-		err = errors.New("push失败: " + string(output) + err.Error())
-		dialog.ShowError(err, w)
+		ErrorPrint("push开始: "+string(output)+err.Error(), w)
 		return
 	}
+	if !<-stopUpLoad {
+		Cancel()
+		if err = cmd.Process.Signal(os.Interrupt); err != nil {
+			ErrorPrint("push停止失败: "+string(output)+err.Error(), w)
+		}
+		InfoPrint(outputInfoEntry, "push被停止成功")
+		return
+	}
+	go func() {
+		err = cmd.Wait()
+		if err != nil {
+			ErrorPrint("push失败: "+string(output)+err.Error(), w)
+		} else {
+			ErrorPrint("push成功: "+string(output)+err.Error(), w)
+		}
+	}()
+
 	ProgressBar.SetValue(0.8)
 	InfoPrint(outputInfoEntry, "7.push")
 	InfoPrint(outputInfoEntry, "上传成功")
