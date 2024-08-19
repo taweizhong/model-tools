@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -9,6 +10,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"net/url"
 )
+
+var stopUpLoad = make(chan bool)
 
 func main() {
 	a := app.New()
@@ -49,23 +52,28 @@ func makeUI(w fyne.Window) fyne.CanvasObject {
 	infoSplit := container.NewVSplit(ProgressVBox, outputInfoEntry)
 	infoSplit.Offset = 0.3
 
-	templateButton := widget.NewButtonWithIcon("模版文件", theme.MediaSkipNextIcon(), func() {
-
+	templateButton := widget.NewButtonWithIcon("模版文件", theme.DocumentIcon(), func() {
+		mkdirTemplateFile(modelPathEntry, outputInfoEntry, w)
 	})
 	templateButton.Importance = widget.HighImportance
 
-	stopButton := widget.NewButtonWithIcon("停止上传", theme.ContentClearIcon(), func() {
+	editTemplateButton := widget.NewButtonWithIcon("模版文件编辑", theme.DocumentCreateIcon(), func() {
 
+	})
+
+	stopButton := widget.NewButtonWithIcon("停止上传", theme.ContentClearIcon(), func() {
+		stopUpLoad <- false
 	})
 	stopButton.Importance = widget.MediumImportance
 
 	uploadButton := widget.NewButtonWithIcon("上传", theme.MediaSkipNextIcon(), func() {
-		UpLoad(modelPathEntry, ProgressBar, outputInfoEntry, uploadPathEntry, w)
+		m += "--------------------------- \n"
+		go UpLoad(modelPathEntry, ProgressBar, outputInfoEntry, uploadPathEntry, w, context.Background())
 	})
 
 	uploadButton.Importance = widget.HighImportance
 
-	content := container.NewBorder(container.NewVBox(modelPathEntry, uploadPathEntry), container.NewGridWithColumns(3, templateButton, stopButton, uploadButton), nil, nil, infoSplit)
+	content := container.NewBorder(container.NewVBox(modelPathEntry, uploadPathEntry), container.NewGridWithColumns(4, templateButton, editTemplateButton, stopButton, uploadButton), nil, nil, infoSplit)
 
 	return container.NewBorder(header, footer, nil, nil, content)
 }
