@@ -15,7 +15,7 @@ var stopUpLoad = make(chan bool)
 
 func main() {
 	a := app.New()
-	w := a.NewWindow("模型上传")
+	w := a.NewWindow("模型上传工具")
 	w.SetContent(makeUI(w))
 	w.Resize(fyne.NewSize(700, 600))
 	w.ShowAndRun()
@@ -32,12 +32,12 @@ func makeUI(w fyne.Window) fyne.CanvasObject {
 	modelPathEntry := widget.NewEntry()
 	modelPathEntry.MultiLine = true
 	modelPathEntry.Wrapping = fyne.TextWrapBreak
-	modelPathEntry.SetPlaceHolder("输入模型文件路径")
+	modelPathEntry.SetPlaceHolder("输入模型文件路径(已经下载的模型文件地址)\n示例：/data/models/glm-4b")
 
 	uploadPathEntry := widget.NewEntry()
 	uploadPathEntry.MultiLine = true
 	uploadPathEntry.Wrapping = fyne.TextWrapBreak
-	uploadPathEntry.SetPlaceHolder("输入上传路径")
+	uploadPathEntry.SetPlaceHolder("输入上传路径(仓库地址)")
 
 	outputInfoEntry := widget.NewEntry()
 	outputInfoEntry.MultiLine = true
@@ -58,7 +58,7 @@ func makeUI(w fyne.Window) fyne.CanvasObject {
 	templateButton.Importance = widget.HighImportance
 
 	editTemplateButton := widget.NewButtonWithIcon("模版文件编辑", theme.DocumentCreateIcon(), func() {
-
+		editTemplateFile(modelPathEntry, outputInfoEntry, w)
 	})
 
 	stopButton := widget.NewButtonWithIcon("停止上传", theme.ContentClearIcon(), func() {
@@ -68,6 +68,7 @@ func makeUI(w fyne.Window) fyne.CanvasObject {
 
 	uploadButton := widget.NewButtonWithIcon("上传", theme.MediaSkipNextIcon(), func() {
 		m += "--------------------------- \n"
+		ProgressBar.SetValue(0)
 		go UpLoad(modelPathEntry, ProgressBar, outputInfoEntry, uploadPathEntry, w, context.Background())
 	})
 

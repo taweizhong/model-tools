@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +15,6 @@ import (
 )
 
 var jinja string = `
-/template
 # 创建template.jinja文件,不同模型的文件内容不一样的
 {{ (messages|selectattr('role', 'equalto', 'system')|list|last).content|trim if (messages|selectattr('role', 'equalto', 'system')|list) else '' }}
 
@@ -79,6 +80,39 @@ func mkdirTemplateFile(modelPathEntry *widget.Entry, outputInfoEntry *widget.Ent
 	}
 	InfoPrint(outputInfoEntry, "模型文件配置成功")
 	return
+}
+
+func editTemplateFile(modelPathEntry *widget.Entry, outputInfoEntry *widget.Entry, w fyne.Window) {
+	editorWindow := fyne.CurrentApp().NewWindow("模型模版文件编辑")
+	file := modelPathEntry.Text + "/template/template.jinja"
+	if !fileExist(file) {
+		ErrorPrint("模板文件不存在", editorWindow)
+	}
+
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		ErrorPrint("模板文读取失败", editorWindow)
+		return
+	}
+
+	// 创建一个文本框以显示和编辑文件内容
+	textEditor := widget.NewMultiLineEntry()
+	textEditor.SetText(string(content))
+
+	// 保存文件按钮
+	saveButton := widget.NewButton("Save File", func() {
+		err := ioutil.WriteFile(file, []byte(textEditor.Text), 0644)
+		if err != nil {
+			ErrorPrint("模板文保存失败", editorWindow)
+			return
+		}
+		dialog.ShowInformation("Saved", "文件保存成功!", editorWindow)
+		editorWindow.Close()
+		InfoPrint(outputInfoEntry, "修改成功")
+	})
+	editorWindow.SetContent(container.NewBorder(nil, saveButton, nil, nil, textEditor))
+	editorWindow.Resize(fyne.NewSize(600, 400))
+	editorWindow.Show()
 }
 
 var m string
