@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -11,17 +10,16 @@ import (
 	"net/url"
 )
 
-var stopUpLoad = make(chan bool)
-
 func main() {
 	a := app.New()
+	preferences := a.Preferences()
 	w := a.NewWindow("模型上传工具")
-	w.SetContent(makeUI(w))
+	w.SetContent(makeUI(w, preferences))
 	w.Resize(fyne.NewSize(700, 600))
 	w.ShowAndRun()
 }
 
-func makeUI(w fyne.Window) fyne.CanvasObject {
+func makeUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObject {
 	header := canvas.NewText("模型上传", theme.PrimaryColor())
 	header.TextSize = 42
 	header.Alignment = fyne.TextAlignCenter
@@ -61,15 +59,18 @@ func makeUI(w fyne.Window) fyne.CanvasObject {
 		editTemplateFile(modelPathEntry, outputInfoEntry, w)
 	})
 
-	stopButton := widget.NewButtonWithIcon("停止上传", theme.ContentClearIcon(), func() {
-		stopUpLoad <- false
+	stopButton := widget.NewButtonWithIcon("上传设置", theme.ContentClearIcon(), func() {
+		upLoadSetting(outputInfoEntry, preferences, w)
+
 	})
 	stopButton.Importance = widget.MediumImportance
 
 	uploadButton := widget.NewButtonWithIcon("上传", theme.MediaSkipNextIcon(), func() {
-		m += "--------------------------- \n"
-		ProgressBar.SetValue(0)
-		go UpLoad(modelPathEntry, ProgressBar, outputInfoEntry, uploadPathEntry, w, context.Background())
+		m = ""
+		if !UpLoad(modelPathEntry, ProgressBar, outputInfoEntry, uploadPathEntry, preferences, w) {
+			ProgressBar.SetValue(0)
+			outputInfoEntry.SetText("本次上传失败")
+		}
 	})
 
 	uploadButton.Importance = widget.HighImportance
