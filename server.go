@@ -228,8 +228,18 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 	repoURL := uploadPathEntry.Text
 	repoName := getRepoNameFromURL(repoURL)
 	repoPath := dir + "/" + repoName
+
+	username := preferences.String("username")
+	password := preferences.String("password")
+	gitUrl := ""
+	if repoURL[0:5] == "https" {
+		gitUrl = fmt.Sprintf("https://%s:%s@", username, password) + repoURL[8:]
+	} else {
+		gitUrl = fmt.Sprintf("http://%s:%s@", username, password) + repoURL[7:]
+	}
+
 	if !fileExist(repoPath) {
-		cmd := exec.Command("git", "clone", repoURL, dir+"/"+repoName)
+		cmd := exec.Command("git", "clone", gitUrl, dir+"/"+repoName)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			ErrorPrint("克隆镜像失败: "+string(output)+err.Error(), w)
@@ -268,14 +278,6 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 	ProgressBar.SetValue(0.6)
 	InfoPrint(outputInfoEntry, "6.commit成功")
 
-	username := preferences.String("username")
-	password := preferences.String("password")
-	gitUrl := ""
-	if repoURL[0:5] == "https" {
-		gitUrl = fmt.Sprintf("https://%s:%s@", username, password) + repoURL[8:]
-	} else {
-		gitUrl = fmt.Sprintf("http://%s:%s@", username, password) + repoURL[7:]
-	}
 	cmd = exec.Command("git", "push", gitUrl, "main")
 	cmd.Dir = modelPath
 	if !upLoadInfoPrint(cmd, outputInfoEntry, w) {
