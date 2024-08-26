@@ -219,7 +219,6 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 			ErrorPrint("删除.git文件错误", w)
 			return false
 		}
-
 	}
 	ProgressBar.SetValue(0.2)
 	InfoPrint(outputInfoEntry, "2.模型初始化成功")
