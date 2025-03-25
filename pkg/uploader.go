@@ -33,13 +33,6 @@ var jinja string = `
 {% endif %}
 `
 
-func fileExist(path string) bool {
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return err == nil
-}
 func getRepoNameFromURL(repoURL string) string {
 	// 去掉协议部分 (例如 "http://", "https://", "git://")
 	repoURL = strings.TrimPrefix(repoURL, "http://")
@@ -107,13 +100,13 @@ func UpLoadInfoPrint(cmd *exec.Cmd, outputInfoEntry *widget.Entry, w fyne.Window
 	return true
 }
 
-func MkdirTemplateFile(modelPathEntry *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
-	modelPath := modelPathEntry.Text
-	if !fileExist(modelPath) {
+func MkdirTemplateFile(modelPathLabel *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
+	modelPath := modelPathLabel.Text
+	if !common.FileExist(modelPath) {
 		ErrorPrint("模型文件不存在", w)
 		return
 	}
-	if !fileExist(modelPath + "/template") {
+	if !common.FileExist(modelPath + "/template") {
 		err := os.Mkdir(modelPath+"/template", 0755)
 		if err != nil {
 			ErrorPrint("模版文件目录创建失败", w)
@@ -135,15 +128,15 @@ func MkdirTemplateFile(modelPathEntry *widget.Label, outputInfoEntry *widget.Ent
 	return
 }
 
-func EditTemplateFile(modelPathEntry *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
+func EditTemplateFile(modelPathLabel *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
 	editorWindow := fyne.CurrentApp().NewWindow("模型模版文件编辑")
-	file := modelPathEntry.Text + "/template/template.jinja"
-	if !fileExist(file) {
+	file := modelPathLabel.Text + "/template/template.jinja"
+	if !common.FileExist(file) {
 		ErrorPrint("模板文件不存在", editorWindow)
 	}
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
-		ErrorPrint("模板文读取失败", editorWindow)
+		ErrorPrint("模板文件读取失败", editorWindow)
 		return
 	}
 	textEditor := widget.NewMultiLineEntry()
@@ -151,7 +144,7 @@ func EditTemplateFile(modelPathEntry *widget.Label, outputInfoEntry *widget.Entr
 	saveButton := widget.NewButton("Save File", func() {
 		err := ioutil.WriteFile(file, []byte(textEditor.Text), 0644)
 		if err != nil {
-			ErrorPrint("模板文保存失败", editorWindow)
+			ErrorPrint("模板文件保存失败", editorWindow)
 			return
 		}
 		dialog.ShowInformation("Saved", "文件保存成功!", editorWindow)
@@ -162,6 +155,7 @@ func EditTemplateFile(modelPathEntry *widget.Label, outputInfoEntry *widget.Entr
 	editorWindow.Resize(fyne.NewSize(600, 400))
 	editorWindow.Show()
 }
+
 func UpLoadSetting(outputInfoEntry *widget.Entry, preferences fyne.Preferences, w fyne.Window) {
 	usernameEntry := widget.NewEntry()
 	usernameEntry.SetPlaceHolder("用户名")
@@ -198,23 +192,23 @@ func UpLoadSetting(outputInfoEntry *widget.Entry, preferences fyne.Preferences, 
 	formDialog.Resize(fyne.NewSize(400, 300))
 	formDialog.Show()
 }
-func UpLoad(modelPathEntry *widget.Label, ProgressBar *widget.ProgressBar, outputInfoEntry *widget.Entry,
+func UpLoad(modelPathLabel *widget.Label, ProgressBar *widget.ProgressBar, outputInfoEntry *widget.Entry,
 	uploadPathEntry *widget.Entry, preferences fyne.Preferences, w fyne.Window) bool {
 
-	if modelPathEntry.Text == "" {
+	if modelPathLabel.Text == "" {
 		ErrorPrint("请输入正确的地址", w)
 		return false
 	}
 
-	modelPath := modelPathEntry.Text
-	if !fileExist(modelPath) {
+	modelPath := modelPathLabel.Text
+	if !common.FileExist(modelPath) {
 		ErrorPrint("模型文件不存在", w)
 		return false
 	}
 	ProgressBar.SetValue(0.1)
 	InfoPrint(outputInfoEntry, "1.模型读取成功")
 
-	if fileExist(modelPath + "/.git") {
+	if common.FileExist(modelPath + "/.git") {
 		err := os.RemoveAll(modelPath + "/.git")
 		if err != nil {
 			ErrorPrint("删除.git文件错误", w)
@@ -238,7 +232,7 @@ func UpLoad(modelPathEntry *widget.Label, ProgressBar *widget.ProgressBar, outpu
 		gitUrl = fmt.Sprintf("http://%s:%s@", username, password) + repoURL[7:]
 	}
 
-	if !fileExist(repoPath) {
+	if !common.FileExist(repoPath) {
 		cmd := exec.Command("git", "clone", gitUrl, dir+"/"+repoName)
 		output, err := cmd.CombinedOutput()
 		if err != nil {

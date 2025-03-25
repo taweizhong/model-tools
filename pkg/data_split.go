@@ -3,16 +3,25 @@ package pkg
 import (
 	"fmt"
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"io"
+	"io/ioutil"
 	"math/rand"
+	"model-upload/common"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var dataTemplate string = `
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+`
 
 func Split(DataPath *widget.Label, ProgressBar *widget.ProgressBar, outputInfoEntry *widget.Entry,
 	ExportPath *widget.Label, preferences fyne.Preferences, w fyne.Window) bool {
@@ -263,4 +272,108 @@ func copyDir(src, dst string) error {
 		}
 	}
 	return nil
+}
+
+func MkdirTrainFile(ExportPathLabel *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
+	exportPath := ExportPathLabel.Text
+	if !common.FileExist(exportPath) {
+		ErrorPrint("文件不存在", w)
+		return
+	}
+	if !common.FileExist(exportPath + "/data.yaml") {
+		file, err := os.Create(exportPath + "/data.yaml")
+		if err != nil {
+			ErrorPrint("文件创建失败", w)
+			return
+		}
+		defer file.Close()
+	}
+	if !common.FileExist(exportPath + "/classes.txt") {
+		ErrorPrint("类文件不存在", w)
+	}
+	nc, names := setClasses(exportPath, outputInfoEntry, w)
+	// 构造 data.yaml 内容
+	yamlContent := fmt.Sprintf(`
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+nc: %d
+names: %s`, nc, names)
+
+	// 写入 data.yaml 文件
+	err := ioutil.WriteFile(exportPath+"/data.yaml", []byte(yamlContent), 0644)
+	if err != nil {
+		ErrorPrint("写入 data.yaml 失败: %s", w)
+		outputInfoEntry.SetText(fmt.Sprintf("错误：写入 data.yaml 失败: %s", err))
+	}
+
+	outputInfoEntry.SetText("成功生成 data.yaml 文件")
+	dialog.ShowInformation("成功", "data.yaml 文件已生成", w)
+
+	InfoPrint(outputInfoEntry, "训练文件配置成功")
+	return
+}
+func EditTrainFile(ExportPath *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
+	editorWindow := fyne.CurrentApp().NewWindow("训练文件编辑")
+	file := ExportPath.Text + "/data.yaml"
+	if !common.FileExist(file) {
+		ErrorPrint("文件不存在", editorWindow)
+	}
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		ErrorPrint("文件读取失败", editorWindow)
+		return
+	}
+	textEditor := widget.NewMultiLineEntry()
+	textEditor.SetText(string(content))
+	saveButton := widget.NewButton("Save File", func() {
+		err := ioutil.WriteFile(file, []byte(textEditor.Text), 0644)
+		if err != nil {
+			ErrorPrint("训练文件保存失败", editorWindow)
+			return
+		}
+		dialog.ShowInformation("Saved", "文件保存成功!", editorWindow)
+		editorWindow.Close()
+		InfoPrint(outputInfoEntry, "修改成功")
+	})
+	editorWindow.SetContent(container.NewBorder(nil, saveButton, nil, nil, textEditor))
+	editorWindow.Resize(fyne.NewSize(600, 400))
+	editorWindow.Show()
+}
+
+func setClasses(exportPath string, outputInfoEntry *widget.Entry, w fyne.Window) (int, string) {
+	// 读取 classes.txt 文件
+	data, err := ioutil.ReadFile(exportPath + "/classes.txt")
+	if err != nil {
+		ErrorPrint("读取 classes.txt 失败: %s", w)
+		outputInfoEntry.SetText(fmt.Sprintf("错误：读取 classes.txt 失败: %s", err))
+		return 0, ""
+	}
+	// 按行分割，获取类别名称
+	classLines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	var classes []string
+	for _, line := range classLines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			classes = append(classes, line)
+		}
+	}
+	if len(classes) == 0 {
+		dialog.ShowError(fmt.Errorf("classes.txt 文件为空或没有有效类别"), w)
+		outputInfoEntry.SetText("错误：classes.txt 文件为空或没有有效类别")
+		return 0, ""
+	}
+
+	// 计算类别数量
+	nc := len(classes)
+	// 构造 names 字段（格式为 ['class1', 'class2', ...]）
+	names := "["
+	for i, class := range classes {
+		names += fmt.Sprintf("'%s'", class)
+		if i < len(classes)-1 {
+			names += ", "
+		}
+	}
+	names += "]"
+	return nc, names
 }

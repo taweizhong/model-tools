@@ -19,7 +19,7 @@ func main() {
 		container.NewTabItem("首页", widget.NewLabel("首页")),
 		container.NewTabItem("模型下载", widget.NewLabel("你好")),
 		container.NewTabItem("模型上传", ui.MakeUpLoadUI(w, preferences)),
-		container.NewTabItem("数据分割", ui.MakeDataSplitUI(w, preferences)),
+		container.NewTabItem("数据集划分", ui.MakeDataSplitUI(w, preferences)),
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
 

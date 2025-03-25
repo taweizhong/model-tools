@@ -17,7 +17,7 @@ import (
 
 func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObject {
 	// 头部
-	header := canvas.NewText("数据分割", theme.PrimaryColor())
+	header := canvas.NewText("数据集划分", theme.PrimaryColor())
 	header.TextSize = 32
 	header.Alignment = fyne.TextAlignCenter
 
@@ -26,9 +26,9 @@ func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObj
 	footer := widget.NewHyperlinkWithStyle("github.com/taweizhong/model-upload.git", u, fyne.TextAlignCenter, fyne.TextStyle{})
 
 	// 创建一个标签用于显示选择的文件夹路径
-	DataPath := widget.NewLabel("尚未选择文件夹")
+	DataSetPathLabel := widget.NewLabel("尚未选择文件夹")
 	// 选择文件按钮
-	DataPathSelectFileButton := widget.NewButton("选择文件夹", func() {
+	DataSetPathSelectFileButton := widget.NewButton("选择文件夹", func() {
 		// 创建文件夹选择对话框
 		folderDialog := dialog.NewFolderOpen(
 			func(folder fyne.ListableURI, err error) {
@@ -41,14 +41,14 @@ func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObj
 					return
 				}
 				// 更新标签显示选择的文件夹路径
-				DataPath.SetText(folder.Path())
+				DataSetPathLabel.SetText(folder.Path())
 			},
 			w,
 		)
 		// 显示对话框
 		folderDialog.Show()
 	})
-	ExportPath := widget.NewLabel("尚未选择文件夹")
+	ExportPathLabel := widget.NewLabel("尚未选择文件夹")
 	exportPath := ""
 	ExportPathSelectFileButton := widget.NewButton("选择文件夹", func() {
 		// 创建文件夹选择对话框
@@ -63,7 +63,7 @@ func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObj
 					return
 				}
 				// 更新标签显示选择的文件夹路径
-				ExportPath.SetText(folder.Path())
+				ExportPathLabel.SetText(folder.Path())
 				exportPath = folder.Path()
 			},
 			w,
@@ -76,21 +76,21 @@ func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObj
 	ExportFileEntry := widget.NewEntry()
 
 	ExportFileEntry.OnChanged = func(s string) {
-		ExportPath.SetText(exportPath + "/" + s)
+		ExportPathLabel.SetText(exportPath + "/" + s)
 	}
-	exContent := container.New(&customSplitLayout{offset: 0.3}, ExportFileLabel, ExportFileEntry)
-	exportContent := container.New(&customSplitLayout{offset: 0.5}, ExportPathSelectFileButton, exContent)
+	fileContent := container.New(&customSplitLayout{offset: 0.3}, ExportFileLabel, ExportFileEntry)
+	exportContent := container.New(&customSplitLayout{offset: 0.5}, ExportPathSelectFileButton, fileContent)
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{
-			{Text: "数据目录", Widget: DataPathSelectFileButton},
+			{Text: "数据目录", Widget: DataSetPathSelectFileButton},
 			{Text: "输出目录", Widget: exportContent},
 		},
 	}
 
 	// 我们也可以追加项目
-	form.Append("文件地址", DataPath)
-	form.Append("输出地址", ExportPath)
+	form.Append("文件地址", DataSetPathLabel)
+	form.Append("输出地址", ExportPathLabel)
 
 	outputInfoEntry := widget.NewEntry()
 	outputInfoEntry.MultiLine = true
@@ -105,14 +105,14 @@ func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObj
 	infoSplit := container.NewVSplit(ProgressVBox, outputInfoEntry)
 	infoSplit.Offset = 0.3
 
-	stopButton := widget.NewButtonWithIcon("划分设置", theme.ContentClearIcon(), func() {
+	settingButton := widget.NewButtonWithIcon("划分设置", theme.ContentClearIcon(), func() {
 		MakeSplitSettingUI(outputInfoEntry, preferences, w)
 
 	})
-	stopButton.Importance = widget.MediumImportance
+	settingButton.Importance = widget.MediumImportance
 
 	splitButton := widget.NewButtonWithIcon("执行", theme.MediaSkipNextIcon(), func() {
-		if !pkg.Split(DataPath, ProgressBar, outputInfoEntry, ExportPath, preferences, w) {
+		if !pkg.Split(DataSetPathLabel, ProgressBar, outputInfoEntry, ExportPathLabel, preferences, w) {
 			ProgressBar.SetValue(0)
 			outputInfoEntry.SetText("本次划分失败")
 		}
@@ -120,7 +120,16 @@ func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObj
 
 	splitButton.Importance = widget.HighImportance
 
-	content := container.NewBorder(container.NewVBox(form), container.NewGridWithColumns(4, stopButton, splitButton), nil, nil, infoSplit)
+	showTrainFileButton := widget.NewButtonWithIcon("训练文件", theme.DocumentIcon(), func() {
+		pkg.MkdirTrainFile(ExportPathLabel, outputInfoEntry, w)
+	})
+	showTrainFileButton.Importance = widget.HighImportance
+
+	editTrainFileButton := widget.NewButtonWithIcon("训练文件编辑", theme.DocumentCreateIcon(), func() {
+		pkg.EditTrainFile(ExportPathLabel, outputInfoEntry, w)
+	})
+
+	content := container.NewBorder(container.NewVBox(form), container.NewGridWithColumns(4, settingButton, splitButton, showTrainFileButton, editTrainFileButton), nil, nil, infoSplit)
 
 	return container.NewBorder(header, footer, nil, nil, content)
 }
