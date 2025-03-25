@@ -1,4 +1,4 @@
-package main
+package pkg
 
 import (
 	"bufio"
@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"io/ioutil"
+	"model-upload/common"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,7 +68,7 @@ func ErrorPrint(error string, w fyne.Window) {
 	dialog.ShowError(err, w)
 }
 
-func upLoadInfoPrint(cmd *exec.Cmd, outputInfoEntry *widget.Entry, w fyne.Window) bool {
+func UpLoadInfoPrint(cmd *exec.Cmd, outputInfoEntry *widget.Entry, w fyne.Window) bool {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		ErrorPrint("Error creating stdout pipe: "+err.Error(), w)
@@ -106,7 +107,7 @@ func upLoadInfoPrint(cmd *exec.Cmd, outputInfoEntry *widget.Entry, w fyne.Window
 	return true
 }
 
-func mkdirTemplateFile(modelPathEntry *widget.Entry, outputInfoEntry *widget.Entry, w fyne.Window) {
+func MkdirTemplateFile(modelPathEntry *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
 	modelPath := modelPathEntry.Text
 	if !fileExist(modelPath) {
 		ErrorPrint("模型文件不存在", w)
@@ -134,7 +135,7 @@ func mkdirTemplateFile(modelPathEntry *widget.Entry, outputInfoEntry *widget.Ent
 	return
 }
 
-func editTemplateFile(modelPathEntry *widget.Entry, outputInfoEntry *widget.Entry, w fyne.Window) {
+func EditTemplateFile(modelPathEntry *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
 	editorWindow := fyne.CurrentApp().NewWindow("模型模版文件编辑")
 	file := modelPathEntry.Text + "/template/template.jinja"
 	if !fileExist(file) {
@@ -161,7 +162,7 @@ func editTemplateFile(modelPathEntry *widget.Entry, outputInfoEntry *widget.Entr
 	editorWindow.Resize(fyne.NewSize(600, 400))
 	editorWindow.Show()
 }
-func upLoadSetting(outputInfoEntry *widget.Entry, preferences fyne.Preferences, w fyne.Window) {
+func UpLoadSetting(outputInfoEntry *widget.Entry, preferences fyne.Preferences, w fyne.Window) {
 	usernameEntry := widget.NewEntry()
 	usernameEntry.SetPlaceHolder("用户名")
 
@@ -197,7 +198,7 @@ func upLoadSetting(outputInfoEntry *widget.Entry, preferences fyne.Preferences, 
 	formDialog.Resize(fyne.NewSize(400, 300))
 	formDialog.Show()
 }
-func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outputInfoEntry *widget.Entry,
+func UpLoad(modelPathEntry *widget.Label, ProgressBar *widget.ProgressBar, outputInfoEntry *widget.Entry,
 	uploadPathEntry *widget.Entry, preferences fyne.Preferences, w fyne.Window) bool {
 
 	if modelPathEntry.Text == "" {
@@ -267,7 +268,8 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 	ProgressBar.SetValue(0.5)
 	InfoPrint(outputInfoEntry, "5.add成功")
 
-	cmd = exec.Command("git", "commit", "-m", "first commit")
+	randomMessage := common.GenerateRandomString(10)
+	cmd = exec.Command("git", "commit", "-m", randomMessage)
 	cmd.Dir = modelPath
 	output, err = cmd.CombinedOutput()
 	if err != nil {
@@ -279,7 +281,7 @@ func UpLoad(modelPathEntry *widget.Entry, ProgressBar *widget.ProgressBar, outpu
 
 	cmd = exec.Command("git", "push", gitUrl, "main")
 	cmd.Dir = modelPath
-	if !upLoadInfoPrint(cmd, outputInfoEntry, w) {
+	if !UpLoadInfoPrint(cmd, outputInfoEntry, w) {
 		return false
 	}
 	ProgressBar.SetValue(0.8)
