@@ -157,50 +157,45 @@ func Split(DataPath *widget.Label, ProgressBar *widget.ProgressBar, outputInfoEn
 	valImages := validImageFiles[trainCount:]
 
 	// 构造图片到目标集的映射
-	imageToSet := make(map[string]string)
-	for _, imageFile := range testImages {
-		imageToSet[imageFile] = "test"
-	}
-	for _, imageFile := range trainImages {
-		imageToSet[imageFile] = "train"
-	}
-	for _, imageFile := range valImages {
-		imageToSet[imageFile] = "valid"
-	}
+	imageToSet := make(map[string][]string)
+	imageToSet["train"] = trainImages
+	imageToSet["valid"] = valImages
+	imageToSet["test"] = testImages
 
 	// 初始化进度条
 	ProgressBar.Min = 0
-	ProgressBar.Max = float64(totalImages)
+	ProgressBar.Max = float64(totalImages + testCount)
 	ProgressBar.SetValue(0)
 
 	// 划分图片和对应的 label 文件
 	processed := 0
-	for imageFile, targetSet := range imageToSet {
-		// 拷贝图片文件
-		targetImagePath := filepath.Join(exportPath, targetSet, "images", filepath.Base(imageFile))
-		if err := copyFile(imageFile, targetImagePath); err != nil {
-			dialog.ShowError(fmt.Errorf("拷贝图片文件失败: %s", err), w)
-			outputInfoEntry.SetText(fmt.Sprintf("错误：拷贝图片文件失败: %s", err))
-			return false
-		}
-
-		// 拷贝对应的 label 文件
-		labelFile := filepath.Join(labelDir, strings.TrimSuffix(filepath.Base(imageFile), filepath.Ext(imageFile))+".txt")
-		if _, err := os.Stat(labelFile); err == nil {
-			targetLabelPath := filepath.Join(exportPath, targetSet, "labels", filepath.Base(labelFile))
-			if err := copyFile(labelFile, targetLabelPath); err != nil {
-				dialog.ShowError(fmt.Errorf("拷贝 label 文件失败: %s", err), w)
-				outputInfoEntry.SetText(fmt.Sprintf("错误：拷贝 labels 文件失败: %s", err))
+	for targetSet, imageFiles := range imageToSet {
+		for _, imageFile := range imageFiles {
+			// 拷贝图片文件
+			targetImagePath := filepath.Join(exportPath, targetSet, "images", filepath.Base(imageFile))
+			if err := copyFile(imageFile, targetImagePath); err != nil {
+				dialog.ShowError(fmt.Errorf("拷贝图片文件失败: %s", err), w)
+				outputInfoEntry.SetText(fmt.Sprintf("错误：拷贝图片文件失败: %s", err))
 				return false
 			}
-		} else {
-			outputInfoEntry.SetText(fmt.Sprintf("警告：未找到对应的 labels 文件: %s", labelFile))
+			// 拷贝对应的 label 文件
+			labelFile := filepath.Join(labelDir, strings.TrimSuffix(filepath.Base(imageFile), filepath.Ext(imageFile))+".txt")
+			if _, err := os.Stat(labelFile); err == nil {
+				targetLabelPath := filepath.Join(exportPath, targetSet, "labels", filepath.Base(labelFile))
+				if err := copyFile(labelFile, targetLabelPath); err != nil {
+					dialog.ShowError(fmt.Errorf("拷贝 label 文件失败: %s", err), w)
+					outputInfoEntry.SetText(fmt.Sprintf("错误：拷贝 labels 文件失败: %s", err))
+					return false
+				}
+			} else {
+				outputInfoEntry.SetText(fmt.Sprintf("警告：未找到对应的 labels 文件: %s", labelFile))
+			}
+			// 更新进度条
+			processed++
+			ProgressBar.SetValue(float64(processed))
+			outputInfoEntry.SetText(fmt.Sprintf("已处理 %d/%d 个文件", processed, totalImages))
 		}
 
-		// 更新进度条
-		processed++
-		ProgressBar.SetValue(float64(processed))
-		outputInfoEntry.SetText(fmt.Sprintf("已处理 %d/%d 个文件", processed, totalImages))
 	}
 
 	// 拷贝 DataPath 中除 image 和 label 外的其他文件到 ExportPath 根目录
