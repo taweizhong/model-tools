@@ -12,22 +12,9 @@ import (
 )
 
 func MakeIndexUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObject {
-	wallpaper, err := loadImageWithOpacity("./assets/index.jpg", 0.9)
-	//wallpaper, err := loadImage("./assets/index.jpg") // 替换为实际图片路径
-	if err != nil {
-		panic(err)
-	}
-
-	// 创建背景图片对象
-	background := canvas.NewImageFromImage(wallpaper)
+	background := canvas.NewImageFromResource(resourceIndexJpg)
 	background.FillMode = canvas.ImageFillStretch // 拉伸填充整个容器
 	background.SetMinSize(fyne.NewSize(550, 600)) // 设置最小尺寸，确保图片可见
-
-	// 使用 canvas.Text 替代 widget.Label#f08a5d
-	//homeLabel := canvas.NewText("欢迎来到首页", color.RGBA{232, 106, 16, 100})
-	//homeLabel.TextSize = 50                          // 设置字体大小
-	//homeLabel.TextStyle = fyne.TextStyle{Bold: true} // 可选：加粗
-	//homeLabel.Alignment = fyne.TextAlignCenter       // 居中对齐
 
 	homeContent := container.NewVBox(
 	//homeLabel,
