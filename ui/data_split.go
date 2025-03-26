@@ -327,9 +327,14 @@ func MakeSplitSettingUI(outputInfoEntry *widget.Entry, preferences fyne.Preferen
 			dialog.ShowInformation("取消", "划分内容取消", w)
 		},
 	}
-	train := ""
-	val := ""
-	test := ""
+	train := "70"
+	val := "30"
+	test := "20"
+
+	preferences.SetString("train", train)
+	preferences.SetString("val", val)
+	preferences.SetString("test", test)
+
 	formDialog := dialog.NewForm("设置", "保存", "取消", form.Items, func(b bool) {
 		if b {
 			form.OnSubmit()
