@@ -62,6 +62,7 @@ func ErrorPrint(error string, w fyne.Window) {
 }
 
 func UpLoadInfoPrint(cmd *exec.Cmd, outputInfoEntry *widget.Entry, w fyne.Window) bool {
+	// 创建 stdout 和 stderr 的管道
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		ErrorPrint("Error creating stdout pipe: "+err.Error(), w)
@@ -69,35 +70,54 @@ func UpLoadInfoPrint(cmd *exec.Cmd, outputInfoEntry *widget.Entry, w fyne.Window
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		ErrorPrint("Error creating stdout pipe: "+err.Error(), w)
+		ErrorPrint("Error creating stderr pipe: "+err.Error(), w)
 		return false
 	}
+
+	// 启动命令
 	if err := cmd.Start(); err != nil {
 		ErrorPrint("Error starting command: "+err.Error(), w)
 		return false
 	}
+
+	// 实时读取 stdout 并显示
 	go func() {
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := scanner.Text()
-			InfoPrint(outputInfoEntry, "	[upLoad-info===]"+line)
+			GitInfoPrint(outputInfoEntry, "	[upLoad-info===] "+line)
 		}
-	}()
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		errInfo := ""
-		for scanner.Scan() {
-			line := scanner.Text()
-			errInfo += line + "\n"
-		}
-		ErrorPrint(errInfo, w)
 	}()
 
+	// 实时读取 stderr 并显示（不直接视为错误）
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			GitInfoPrint(outputInfoEntry, "	[upLoad-error===] "+line)
+		}
+	}()
+
+	// 等待命令执行完成
 	if err := cmd.Wait(); err != nil {
-		//ErrorPrint("Error waiting for command: "+err.Error(), w)
+		GitErrorPrint("Command failed: "+err.Error(), w)
 		return false
 	}
+
+	// 命令成功执行
+	GitInfoPrint(outputInfoEntry, "Git upload completed successfully")
 	return true
+}
+
+// InfoPrint 更新 outputInfoEntry 的内容
+func GitInfoPrint(entry *widget.Entry, message string) {
+	entry.SetText(entry.Text + "\n" + message)
+	entry.Refresh()
+}
+
+// ErrorPrint 显示错误信息
+func GitErrorPrint(message string, w fyne.Window) {
+	dialog.ShowError(fmt.Errorf(message), w)
 }
 
 func MkdirTemplateFile(modelPathLabel *widget.Label, outputInfoEntry *widget.Entry, w fyne.Window) {
