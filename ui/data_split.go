@@ -23,7 +23,7 @@ func MakeDataSplitUI(w fyne.Window, preferences fyne.Preferences) fyne.CanvasObj
 
 	// 底部
 	u, _ := url.Parse("")
-	footer := widget.NewHyperlinkWithStyle("github.com/taweizhong/model-upload.git", u, fyne.TextAlignCenter, fyne.TextStyle{})
+	footer := widget.NewHyperlinkWithStyle("github.com/taweizhong/model-tools.git", u, fyne.TextAlignCenter, fyne.TextStyle{})
 
 	// 创建一个标签用于显示选择的文件夹路径
 	DataSetPathLabel := widget.NewLabel("尚未选择文件夹")
